@@ -102,7 +102,7 @@
         type="text"
         bind:value={noteTitle}
         placeholder="Note title..."
-        class="text-white bg-transparent w-full py-3 text-3xl font-[300] outline-none border-b-2 border-gray-400"
+        class="text-white bg-transparent w-full pb-3 text-3xl font-[300] outline-none border-b-2 border-gray-400"
       />
     </div>
 
