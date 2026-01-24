@@ -3,10 +3,13 @@
   import { currentRoute, router } from "./lib/router.js";
   import MetroNotesPage from "./pages/MetroNotesPage.svelte";
   import NewNotePage from "./pages/NewNotePage.svelte";
+  import NewSketchPage from "./pages/NewSketchPage.svelte";
   import BottomControls from "./components/BottomControls.svelte";
   import Notifier from "./components/Notifier.svelte";
   import Icon from "@iconify/svelte";
   import { bottomBarExpanded, bottomBarUnmounting } from "./store/bottomBar.js";
+  import { backButtonInBottomBarStore } from "./store/settings.js";
+  import { activePanel } from "./store/activePanel.js";
   import {
     StatusBar as CapacitorStatusBar,
     Style,
@@ -15,6 +18,7 @@
   let route = "/";
   let isExiting = false;
   let newNotePageRef = null;
+  let newSketchPageRef = null;
   let isEntering = false;
   let isInitialLoad = true;
   let exitingRoute = null;
@@ -66,7 +70,9 @@
         const hadBottomBar =
           prevRoutePath === "/" ||
           prevRoutePath === "/notes/new" ||
-          (prevRoutePath.startsWith("/notes/") && prevRoutePath !== "/notes/new");
+          (prevRoutePath.startsWith("/notes/") && prevRoutePath !== "/notes/new") ||
+          prevRoutePath === "/sketches/new" ||
+          (prevRoutePath.startsWith("/sketches/") && prevRoutePath !== "/sketches/new");
         const hasBottomBar = shouldShowBottomBar;
 
         if (hadBottomBar && !hasBottomBar) {
@@ -106,24 +112,37 @@
   }
 
   $: shouldShowBottomBar =
-    routePath === "/" || routePath === "/notes/new" || (routePath.startsWith("/notes/") && routePath !== "/notes/new");
+    routePath === "/" || 
+    routePath === "/notes/new" || 
+    (routePath.startsWith("/notes/") && routePath !== "/notes/new") ||
+    routePath === "/sketches/new" ||
+    (routePath.startsWith("/sketches/") && routePath !== "/sketches/new");
   $: isExpanded = $bottomBarExpanded;
   $: isUnmounting = $bottomBarUnmounting;
 
   // Determine which buttons to show based on route
   $: isNoteEditRoute = routePath.startsWith("/notes/") && routePath !== "/notes/new";
-  $: bottomBarButtons = getButtonsForRoute(routePath, isNoteEditRoute);
+  $: isSketchEditRoute = routePath.startsWith("/sketches/") && routePath !== "/sketches/new";
+  $: backButtonInBottomBar = $backButtonInBottomBarStore;
+  $: currentActivePanel = $activePanel;
+  $: bottomBarButtons = getButtonsForRoute(routePath, isNoteEditRoute, isSketchEditRoute, backButtonInBottomBar, currentActivePanel);
 
-  function getButtonsForRoute(path, isEdit) {
-    if (path === "/notes/new" || isEdit) {
-      // Back, Checklist, and Save buttons for note editing
-      return [
-        {
+  function getButtonsForRoute(path, isNoteEdit, isSketchEdit, showBackInBottomBar, activePanelIndex) {
+    if (path === "/notes/new" || isNoteEdit) {
+      // Checklist and Save buttons for note editing
+      const buttons = [];
+      
+      // Only add back button if setting is enabled
+      if (showBackInBottomBar) {
+        buttons.push({
           icon: "subway:left-arrow",
           text: "back",
           action: () => router.goto("/"),
           ariaLabel: "Back to all notes"
-        },
+        });
+      }
+      
+      buttons.push(
         {
           icon: "mdi:checkbox-marked-outline",
           text: "checklist",
@@ -144,17 +163,59 @@
           },
           ariaLabel: "Save note"
         }
-      ];
+      );
+      
+      return buttons;
+    } else if (path === "/sketches/new" || isSketchEdit) {
+      // Save button for sketch editing
+      const buttons = [];
+      
+      // Only add back button if setting is enabled
+      if (showBackInBottomBar) {
+        buttons.push({
+          icon: "subway:left-arrow",
+          text: "back",
+          action: () => router.goto("/"),
+          ariaLabel: "Back to all sketches"
+        });
+      }
+      
+      buttons.push({
+        icon: "tdesign:save-filled",
+        text: "save",
+        action: () => {
+          if (newSketchPageRef && newSketchPageRef.save) {
+            newSketchPageRef.save();
+          }
+        },
+        ariaLabel: "Save sketch"
+      });
+      
+      return buttons;
     } else {
-      // Plus button for home page
-      return [
-        {
-          icon: "rivet-icons:plus",
-          text: "note",
-          action: () => router.goto("/notes/new"),
-          ariaLabel: "Create note"
-        }
-      ];
+      // Plus button for home page - check which panel is active
+      // activePanelIndex: 0 = all notes, 1 = sketches, 2 = settings
+      if (activePanelIndex === 1) {
+        // Sketches panel is active
+        return [
+          {
+            icon: "rivet-icons:plus",
+            text: "sketch",
+            action: () => router.goto("/sketches/new"),
+            ariaLabel: "Create sketch"
+          }
+        ];
+      } else {
+        // Notes panel is active (default)
+        return [
+          {
+            icon: "rivet-icons:plus",
+            text: "note",
+            action: () => router.goto("/notes/new"),
+            ariaLabel: "Create note"
+          }
+        ];
+      }
     }
   }
 
@@ -218,7 +279,15 @@
         isExiting={isExiting && ((exitingRoute === "/notes/new") || (exitingRoute && exitingRoute.startsWith("/notes/") && exitingRoute !== "/notes/new"))} 
         isEntering={isEntering && ((enteringRoute === "/notes/new") || (enteringRoute && enteringRoute.startsWith("/notes/") && enteringRoute !== "/notes/new"))} 
       />
-      {/if}
+    {/if}
+    <!-- New Sketch Page or Edit Sketch Page -->
+    {#if routePath === "/sketches/new" || (isExiting && exitingRoute === "/sketches/new") || (routePath.startsWith("/sketches/") && routePath !== "/sketches/new") || (isExiting && exitingRoute && exitingRoute.startsWith("/sketches/") && exitingRoute !== "/sketches/new")}
+      <NewSketchPage 
+        bind:this={newSketchPageRef} 
+        isExiting={isExiting && ((exitingRoute === "/sketches/new") || (exitingRoute && exitingRoute.startsWith("/sketches/") && exitingRoute !== "/sketches/new"))} 
+        isEntering={isEntering && ((enteringRoute === "/sketches/new") || (enteringRoute && enteringRoute.startsWith("/sketches/") && enteringRoute !== "/sketches/new"))} 
+      />
+    {/if}
     </div>
 
   <!-- Bottom Bar -->

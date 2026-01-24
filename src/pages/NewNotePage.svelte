@@ -4,6 +4,7 @@
   import { notesStore, notes } from "../store/notes.js";
   import { textColorClassStore, accentColorStore } from "../utils/theme.js";
   import { addToast } from "../store/toast.js";
+  import { backButtonInBottomBarStore } from "../store/settings.js";
   import Icon from "@iconify/svelte";
   import RichTextEditor from "../components/RichTextEditor.svelte";
 
@@ -16,6 +17,8 @@
   let noteId = null;
   let isEditing = false;
   let richTextEditorRef = null;
+
+  $: backButtonInBottomBar = $backButtonInBottomBarStore;
 
   $: route = $currentRoute;
   $: {
@@ -107,7 +110,18 @@
     class:page-exit={isExiting}
     class:page-entering={isEntering}
   >
-  <span class="text-base font-[500] h-fit px-4 uppercase mt-2">metro</span>
+  <div class="flex items-center gap-2 h-fit px-4 uppercase mt-2">
+    {#if !backButtonInBottomBar}
+      <button
+        on:click={() => router.goto("/")}
+        class="flex items-center justify-center"
+        aria-label="Back to all notes"
+      >
+        <Icon icon="ion:chevron-back-sharp" width="20" height="20" strokeWidth="2" />
+      </button>
+    {/if}
+    <span class="text-base font-[500]">metro notes</span>
+  </div>
   <div
     class="flex flex-col gap-4 pb-20 mt-4 overflow-y-auto overflow-x-hidden px-4 h-full"
   >
