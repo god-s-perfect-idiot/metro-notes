@@ -45,7 +45,7 @@
         // Set which routes are exiting and entering
         exitingRoute = previousRoute;
         enteringRoute = route;
-        
+
         // Trigger exit animation for the previous page
         isExiting = true;
         // Don't set entering yet - wait for exit animation to complete
@@ -70,9 +70,11 @@
         const hadBottomBar =
           prevRoutePath === "/" ||
           prevRoutePath === "/notes/new" ||
-          (prevRoutePath.startsWith("/notes/") && prevRoutePath !== "/notes/new") ||
+          (prevRoutePath.startsWith("/notes/") &&
+            prevRoutePath !== "/notes/new") ||
           prevRoutePath === "/sketches/new" ||
-          (prevRoutePath.startsWith("/sketches/") && prevRoutePath !== "/sketches/new");
+          (prevRoutePath.startsWith("/sketches/") &&
+            prevRoutePath !== "/sketches/new");
         const hasBottomBar = shouldShowBottomBar;
 
         if (hadBottomBar && !hasBottomBar) {
@@ -112,8 +114,8 @@
   }
 
   $: shouldShowBottomBar =
-    routePath === "/" || 
-    routePath === "/notes/new" || 
+    routePath === "/" ||
+    routePath === "/notes/new" ||
     (routePath.startsWith("/notes/") && routePath !== "/notes/new") ||
     routePath === "/sketches/new" ||
     (routePath.startsWith("/sketches/") && routePath !== "/sketches/new");
@@ -121,27 +123,41 @@
   $: isUnmounting = $bottomBarUnmounting;
 
   // Determine which buttons to show based on route
-  $: isNoteEditRoute = routePath.startsWith("/notes/") && routePath !== "/notes/new";
-  $: isSketchEditRoute = routePath.startsWith("/sketches/") && routePath !== "/sketches/new";
+  $: isNoteEditRoute =
+    routePath.startsWith("/notes/") && routePath !== "/notes/new";
+  $: isSketchEditRoute =
+    routePath.startsWith("/sketches/") && routePath !== "/sketches/new";
   $: backButtonInBottomBar = $backButtonInBottomBarStore;
   $: currentActivePanel = $activePanel;
-  $: bottomBarButtons = getButtonsForRoute(routePath, isNoteEditRoute, isSketchEditRoute, backButtonInBottomBar, currentActivePanel);
+  $: bottomBarButtons = getButtonsForRoute(
+    routePath,
+    isNoteEditRoute,
+    isSketchEditRoute,
+    backButtonInBottomBar,
+    currentActivePanel,
+  );
 
-  function getButtonsForRoute(path, isNoteEdit, isSketchEdit, showBackInBottomBar, activePanelIndex) {
+  function getButtonsForRoute(
+    path,
+    isNoteEdit,
+    isSketchEdit,
+    showBackInBottomBar,
+    activePanelIndex,
+  ) {
     if (path === "/notes/new" || isNoteEdit) {
       // Checklist and Save buttons for note editing
       const buttons = [];
-      
+
       // Only add back button if setting is enabled
       if (showBackInBottomBar) {
         buttons.push({
           icon: "subway:left-arrow",
           text: "back",
           action: () => router.goto("/"),
-          ariaLabel: "Back to all notes"
+          ariaLabel: "Back to all notes",
         });
       }
-      
+
       buttons.push(
         {
           icon: "mdi:checkbox-marked-outline",
@@ -151,7 +167,7 @@
               newNotePageRef.insertCheckbox(false);
             }
           },
-          ariaLabel: "Insert checklist item"
+          ariaLabel: "Insert checklist item",
         },
         {
           icon: "tdesign:save-filled",
@@ -161,25 +177,25 @@
               newNotePageRef.save();
             }
           },
-          ariaLabel: "Save note"
-        }
+          ariaLabel: "Save note",
+        },
       );
-      
+
       return buttons;
     } else if (path === "/sketches/new" || isSketchEdit) {
       // Save button for sketch editing
       const buttons = [];
-      
+
       // Only add back button if setting is enabled
       if (showBackInBottomBar) {
         buttons.push({
           icon: "subway:left-arrow",
           text: "back",
           action: () => router.goto("/"),
-          ariaLabel: "Back to all sketches"
+          ariaLabel: "Back to all sketches",
         });
       }
-      
+
       buttons.push({
         icon: "tdesign:save-filled",
         text: "save",
@@ -188,9 +204,9 @@
             newSketchPageRef.save();
           }
         },
-        ariaLabel: "Save sketch"
+        ariaLabel: "Save sketch",
       });
-      
+
       return buttons;
     } else {
       // Plus button for home page - check which panel is active
@@ -202,18 +218,18 @@
             icon: "rivet-icons:plus",
             text: "sketch",
             action: () => router.goto("/sketches/new"),
-            ariaLabel: "Create sketch"
-          }
+            ariaLabel: "Create sketch",
+          },
         ];
       } else {
         // Notes panel is active (default)
         return [
           {
             icon: "rivet-icons:plus",
-            text: "note",
+            text: "new",
             action: () => router.goto("/notes/new"),
-            ariaLabel: "Create note"
-          }
+            ariaLabel: "Create note",
+          },
         ];
       }
     }
@@ -269,26 +285,55 @@
   <!-- Main Content -->
   <div class="w-full h-full content-container relative">
     <!-- All Notes Page -->
-    {#if (routePath === "/" || routePath === "") || (isExiting && exitingRoute && (exitingRoute.split("?")[0].split("#")[0] === "/" || exitingRoute.split("?")[0].split("#")[0] === ""))}
-      <MetroNotesPage isExiting={isExiting && exitingRoute && (exitingRoute.split("?")[0].split("#")[0] === "/" || exitingRoute.split("?")[0].split("#")[0] === "")} isEntering={isEntering && enteringRoute && (enteringRoute.split("?")[0].split("#")[0] === "/" || enteringRoute.split("?")[0].split("#")[0] === "")} />
+    {#if routePath === "/" || routePath === "" || (isExiting && exitingRoute && (exitingRoute
+          .split("?")[0]
+          .split("#")[0] === "/" || exitingRoute
+            .split("?")[0]
+            .split("#")[0] === ""))}
+      <MetroNotesPage
+        isExiting={isExiting &&
+          exitingRoute &&
+          (exitingRoute.split("?")[0].split("#")[0] === "/" ||
+            exitingRoute.split("?")[0].split("#")[0] === "")}
+        isEntering={isEntering &&
+          enteringRoute &&
+          (enteringRoute.split("?")[0].split("#")[0] === "/" ||
+            enteringRoute.split("?")[0].split("#")[0] === "")}
+      />
     {/if}
     <!-- New Note Page or Edit Note Page -->
     {#if routePath === "/notes/new" || (isExiting && exitingRoute === "/notes/new") || (routePath.startsWith("/notes/") && routePath !== "/notes/new") || (isExiting && exitingRoute && exitingRoute.startsWith("/notes/") && exitingRoute !== "/notes/new")}
-      <NewNotePage 
-        bind:this={newNotePageRef} 
-        isExiting={isExiting && ((exitingRoute === "/notes/new") || (exitingRoute && exitingRoute.startsWith("/notes/") && exitingRoute !== "/notes/new"))} 
-        isEntering={isEntering && ((enteringRoute === "/notes/new") || (enteringRoute && enteringRoute.startsWith("/notes/") && enteringRoute !== "/notes/new"))} 
+      <NewNotePage
+        bind:this={newNotePageRef}
+        isExiting={isExiting &&
+          (exitingRoute === "/notes/new" ||
+            (exitingRoute &&
+              exitingRoute.startsWith("/notes/") &&
+              exitingRoute !== "/notes/new"))}
+        isEntering={isEntering &&
+          (enteringRoute === "/notes/new" ||
+            (enteringRoute &&
+              enteringRoute.startsWith("/notes/") &&
+              enteringRoute !== "/notes/new"))}
       />
     {/if}
     <!-- New Sketch Page or Edit Sketch Page -->
     {#if routePath === "/sketches/new" || (isExiting && exitingRoute === "/sketches/new") || (routePath.startsWith("/sketches/") && routePath !== "/sketches/new") || (isExiting && exitingRoute && exitingRoute.startsWith("/sketches/") && exitingRoute !== "/sketches/new")}
-      <NewSketchPage 
-        bind:this={newSketchPageRef} 
-        isExiting={isExiting && ((exitingRoute === "/sketches/new") || (exitingRoute && exitingRoute.startsWith("/sketches/") && exitingRoute !== "/sketches/new"))} 
-        isEntering={isEntering && ((enteringRoute === "/sketches/new") || (enteringRoute && enteringRoute.startsWith("/sketches/") && enteringRoute !== "/sketches/new"))} 
+      <NewSketchPage
+        bind:this={newSketchPageRef}
+        isExiting={isExiting &&
+          (exitingRoute === "/sketches/new" ||
+            (exitingRoute &&
+              exitingRoute.startsWith("/sketches/") &&
+              exitingRoute !== "/sketches/new"))}
+        isEntering={isEntering &&
+          (enteringRoute === "/sketches/new" ||
+            (enteringRoute &&
+              enteringRoute.startsWith("/sketches/") &&
+              enteringRoute !== "/sketches/new"))}
       />
     {/if}
-    </div>
+  </div>
 
   <!-- Bottom Bar -->
   <!-- When navigating between bottom bars, show exiting bar with no buttons, then show new bar -->
@@ -296,9 +341,14 @@
     {#if (shouldShowBottomBar && shouldShowNewBottomBar) || isExitingBottomBar}
       <BottomControls
         expanded={isExpanded}
-        unmounting={isUnmounting || (isExitingBottomBar && !shouldShowNewBottomBar)}
-        buttons={isExitingBottomBar && !shouldShowNewBottomBar ? [] : bottomBarButtons}
-        isEntering={shouldShowBottomBar && shouldShowNewBottomBar && !isExitingBottomBar}
+        unmounting={isUnmounting ||
+          (isExitingBottomBar && !shouldShowNewBottomBar)}
+        buttons={isExitingBottomBar && !shouldShowNewBottomBar
+          ? []
+          : bottomBarButtons}
+        isEntering={shouldShowBottomBar &&
+          shouldShowNewBottomBar &&
+          !isExitingBottomBar}
         on:toggle={handleToggle}
       />
     {/if}

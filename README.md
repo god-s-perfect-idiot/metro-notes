@@ -100,7 +100,7 @@ metro-notes/
 
 The main configuration is in `capacitor.config.ts`:
 
-- **appId**: `com.metrospotify.app` (can be updated to `com.metronotes.app`)
+- **appId**: `com.metronotes.app` 
 - **appName**: `Metro Notes`
 
 ## Building for Production

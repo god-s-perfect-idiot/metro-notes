@@ -15,11 +15,10 @@
   let isTransitioning = false;
   let touchStartX = null;
   let touchStartY = null;
-  let touchStartTime = null;
-  let scrollLeft = 0;
   let isDragging = false;
   let dragStartX = 0;
   let dragStartScrollLeft = 0;
+  let isProgrammaticScroll = false;
 
   // Ensure we have panels
   $: if (panels.length === 0) {
@@ -63,11 +62,15 @@
     if (targetIndex === currentIndex && !isDragging) return;
 
     isTransitioning = true;
+    isProgrammaticScroll = true;
     currentIndex = targetIndex;
 
     if (scrollContainerRef) {
       const panelWidth = scrollContainerRef.clientWidth;
       const targetScroll = targetIndex * panelWidth;
+
+      // Temporarily disable scroll snap during programmatic scroll
+      scrollContainerRef.style.scrollSnapType = "none";
 
       scrollContainerRef.scrollTo({
         left: targetScroll,
@@ -77,13 +80,16 @@
       // Update title bar scroll to show peek of next section
       updateTitleBarScroll(targetIndex);
 
-      // Reset transition flag after animation
-      setTimeout(
-        () => {
-          isTransitioning = false;
-        },
-        smooth ? 400 : 0,
-      );
+      // Reset flags after animation
+      const duration = smooth ? 400 : 0;
+      setTimeout(() => {
+        isTransitioning = false;
+        isProgrammaticScroll = false;
+        // Re-enable scroll snap after transition
+        if (scrollContainerRef) {
+          scrollContainerRef.style.scrollSnapType = "x mandatory";
+        }
+      }, duration);
     }
   }
 
@@ -138,182 +144,201 @@
     scrollToPanel(index, true, true);
   }
 
-  // Handle touch start for swipe detection
+  // Handle touch start
   function handleTouchStart(e) {
     if (isTransitioning) return;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    touchStartTime = Date.now();
     isDragging = false;
 
     if (scrollContainerRef) {
       dragStartX = e.touches[0].clientX;
       dragStartScrollLeft = scrollContainerRef.scrollLeft;
+      // Disable scroll snap and smooth scrolling during drag for 1:1 panning
+      scrollContainerRef.style.scrollSnapType = "none";
+      scrollContainerRef.style.scrollBehavior = "auto";
     }
   }
 
-  // Handle touch move
+  // Handle touch move - natural panning under finger
   function handleTouchMove(e) {
     if (touchStartX === null || touchStartY === null || isTransitioning) return;
 
     const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
     const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
 
-    // If horizontal movement is significant, enable dragging (lowered threshold)
+    // If horizontal movement is significant, enable dragging
     if (deltaX > 5 && deltaX > deltaY) {
-      isDragging = true;
+      if (!isDragging) {
+        isDragging = true;
+      }
 
       if (scrollContainerRef) {
+        // Natural panning: when finger moves right, content moves right (scrollLeft decreases)
         const diff = e.touches[0].clientX - dragStartX;
-        scrollContainerRef.scrollLeft = dragStartScrollLeft - diff;
+        const newScrollLeft = dragStartScrollLeft - diff;
+
+        // Allow peeking of next/prev page by allowing slight overscroll
+        const panelWidth = scrollContainerRef.clientWidth;
+        const minScroll = -panelWidth * 0.1; // Allow 10% peek of previous panel
+        const maxScroll = (panels.length - 1) * panelWidth + panelWidth * 0.1; // Allow 10% peek of next panel
+
+        // Directly set scroll position for 1:1 panning feel
+        scrollContainerRef.scrollLeft = Math.max(
+          minScroll,
+          Math.min(maxScroll, newScrollLeft),
+        );
       }
+
+      // Prevent default to avoid scrolling the page
+      e.preventDefault();
     }
   }
 
-  // Handle touch end - determine if swipe or tap
+  // Handle touch end - check if 40% threshold is met
   function handleTouchEnd(e) {
-    if (touchStartX === null || touchStartY === null || isTransitioning) {
-      touchStartX = null;
-      touchStartY = null;
-      touchStartTime = null;
-      isDragging = false;
+    if (touchStartX === null || touchStartY === null) {
+      resetDrag();
       return;
     }
 
-    const deltaX = e.changedTouches[0].clientX - touchStartX;
-    const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
-    const touchDuration = Date.now() - touchStartTime;
-    const swipeThreshold = 30; // Lowered from 50 to make swiping easier
-
-    // If dragging, handle scroll position
     if (isDragging && scrollContainerRef) {
       const panelWidth = scrollContainerRef.clientWidth;
       const currentScroll = scrollContainerRef.scrollLeft;
       const currentPanel = Math.round(currentScroll / panelWidth);
+      const normalizedPanel = Math.max(
+        0,
+        Math.min(panels.length - 1, currentPanel),
+      );
 
-      // Determine direction based on scroll position
-      const scrollDiff = currentScroll - currentPanel * panelWidth;
+      // Calculate how far we've scrolled from the panel center
+      const panelCenter = normalizedPanel * panelWidth;
+      const scrollDiff = currentScroll - panelCenter;
+      const dragPercentage = Math.abs(scrollDiff) / panelWidth;
 
-      if (Math.abs(scrollDiff) > panelWidth * 0.2) {
-        // Swipe was significant, move to next/prev panel (only 1 panel at a time)
+      // If drag is more than 40%, switch to next/prev page
+      if (dragPercentage > 0.4) {
         if (scrollDiff > 0) {
-          scrollToPanel(currentPanel + 1, true, false);
+          // Dragged right, go to next panel
+          scrollToPanel(normalizedPanel + 1, true, false);
         } else {
-          scrollToPanel(currentPanel - 1, true, false);
+          // Dragged left, go to previous panel
+          scrollToPanel(normalizedPanel - 1, true, false);
         }
       } else {
         // Snap back to current panel
-        scrollToPanel(currentPanel, true, false);
-      }
-    } else if (
-      Math.abs(deltaX) > swipeThreshold &&
-      deltaX > deltaY &&
-      touchDuration < 500
-    ) {
-      // Quick swipe gesture (only 1 panel at a time)
-      if (deltaX > 0) {
-        // Swipe right - go to previous panel
-        scrollToPanel(currentIndex - 1, true, false);
-      } else {
-        // Swipe left - go to next panel
-        scrollToPanel(currentIndex + 1, true, false);
+        scrollToPanel(normalizedPanel, true, false);
       }
     }
 
-    // Reset touch tracking
+    resetDrag();
+  }
+
+  function resetDrag() {
     touchStartX = null;
     touchStartY = null;
-    touchStartTime = null;
     isDragging = false;
+    if (scrollContainerRef) {
+      scrollContainerRef.style.scrollSnapType = "x mandatory";
+      scrollContainerRef.style.scrollBehavior = "smooth";
+    }
   }
 
   // Handle scroll event to update current index
   function handleScroll() {
-    if (isTransitioning || !scrollContainerRef) return;
+    // Ignore scroll events during programmatic scrolling or transitions
+    if (
+      isProgrammaticScroll ||
+      isTransitioning ||
+      !scrollContainerRef ||
+      isDragging
+    ) {
+      return;
+    }
 
     const panelWidth = scrollContainerRef.clientWidth;
+    if (panelWidth === 0) return;
+
     const scrollLeft = scrollContainerRef.scrollLeft;
     const newIndex = Math.round(scrollLeft / panelWidth);
+    const clampedIndex = Math.max(0, Math.min(panels.length - 1, newIndex));
 
-    // Handle endless circular navigation
-    if (newIndex !== currentIndex) {
-      if (newIndex < 0) {
-        // Scrolled past first panel, wrap to last (only if dragging, otherwise clamp)
-        if (isDragging) {
-          const lastIndex = panels.length - 1;
-          setTimeout(() => {
-            scrollToPanel(lastIndex, false, false);
-          }, 0);
-        } else {
-          // Snap back to first panel
-          setTimeout(() => {
-            scrollToPanel(0, false, false);
-          }, 0);
-        }
-      } else if (newIndex >= panels.length) {
-        // Scrolled past last panel, wrap to first (only if dragging, otherwise clamp)
-        if (isDragging) {
-          setTimeout(() => {
-            scrollToPanel(0, false, false);
-          }, 0);
-        } else {
-          // Snap back to last panel
-          const lastIndex = panels.length - 1;
-          setTimeout(() => {
-            scrollToPanel(lastIndex, false, false);
-          }, 0);
-        }
-      } else {
-        const normalizedNewIndex = normalizeIndex(newIndex);
-        // Only update if it's within 1 panel of current
-        const diff = Math.abs(normalizedNewIndex - currentIndex);
-        if (
-          normalizedNewIndex !== currentIndex &&
-          (diff === 1 || diff === panels.length - 1)
-        ) {
-          currentIndex = normalizedNewIndex;
-          // Title bar scroll will be updated by reactive statement
-        }
-      }
+    // Only update if index actually changed
+    if (
+      clampedIndex !== currentIndex &&
+      clampedIndex >= 0 &&
+      clampedIndex < panels.length
+    ) {
+      currentIndex = clampedIndex;
     }
   }
 
-  // Handle mouse drag for desktop
+  // Handle mouse drag for desktop (same logic as touch)
   function handleMouseDown(e) {
     if (isTransitioning) return;
     isDragging = true;
     dragStartX = e.clientX;
     if (scrollContainerRef) {
       dragStartScrollLeft = scrollContainerRef.scrollLeft;
+      scrollContainerRef.style.scrollSnapType = "none";
+      scrollContainerRef.style.scrollBehavior = "auto";
     }
     e.preventDefault();
   }
 
   function handleMouseMove(e) {
     if (!isDragging || !scrollContainerRef || isTransitioning) return;
+
+    // Natural panning: when mouse moves right, content moves right (scrollLeft decreases)
     const diff = e.clientX - dragStartX;
-    scrollContainerRef.scrollLeft = dragStartScrollLeft - diff;
+    const newScrollLeft = dragStartScrollLeft - diff;
+
+    // Allow peeking of next/prev page
+    const panelWidth = scrollContainerRef.clientWidth;
+    const minScroll = -panelWidth * 0.1; // Allow 10% peek of previous panel
+    const maxScroll = (panels.length - 1) * panelWidth + panelWidth * 0.1; // Allow 10% peek of next panel
+
+    // Directly set scroll position for 1:1 panning feel
+    scrollContainerRef.scrollLeft = Math.max(
+      minScroll,
+      Math.min(maxScroll, newScrollLeft),
+    );
   }
 
   function handleMouseUp(e) {
-    if (!isDragging || !scrollContainerRef) return;
+    if (!isDragging || !scrollContainerRef) {
+      if (scrollContainerRef) {
+        scrollContainerRef.style.scrollSnapType = "x mandatory";
+      }
+      return;
+    }
 
     const panelWidth = scrollContainerRef.clientWidth;
     const currentScroll = scrollContainerRef.scrollLeft;
     const currentPanel = Math.round(currentScroll / panelWidth);
-    const scrollDiff = currentScroll - currentPanel * panelWidth;
+    const normalizedPanel = Math.max(
+      0,
+      Math.min(panels.length - 1, currentPanel),
+    );
 
-    if (Math.abs(scrollDiff) > panelWidth * 0.2) {
-      // Only move 1 panel at a time
+    // Calculate drag percentage
+    const panelCenter = normalizedPanel * panelWidth;
+    const scrollDiff = currentScroll - panelCenter;
+    const dragPercentage = Math.abs(scrollDiff) / panelWidth;
+
+    // If drag is more than 40%, switch to next/prev page
+    if (dragPercentage > 0.4) {
       if (scrollDiff > 0) {
-        scrollToPanel(currentPanel + 1, true, false);
+        scrollToPanel(normalizedPanel + 1, true, false);
       } else {
-        scrollToPanel(currentPanel - 1, true, false);
+        scrollToPanel(normalizedPanel - 1, true, false);
       }
     } else {
-      scrollToPanel(currentPanel, true, false);
+      scrollToPanel(normalizedPanel, true, false);
     }
 
+    scrollContainerRef.style.scrollSnapType = "x mandatory";
+    scrollContainerRef.style.scrollBehavior = "smooth";
     isDragging = false;
   }
 
@@ -411,9 +436,14 @@
   </div>
 
   <!-- Panel Content Container -->
+  <!-- svelte-ignore a11y-non-interactive-element -->
+  <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
   <div
     class="panel-scroll-container"
     bind:this={scrollContainerRef}
+    role="application"
+    aria-label="Panel navigation"
+    tabindex="0"
     on:scroll={handleScroll}
     on:touchstart={handleTouchStart}
     on:touchmove={handleTouchMove}

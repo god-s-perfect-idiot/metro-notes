@@ -1,14 +1,15 @@
 {
-  "iconBackgroundColor": "#ffd84f",
-  "iconBackgroundColorDark": "#ffd84f",
-  "splashBackgroundColor": "#000000",
-  "splashBackgroundColorDark": "#000000",
-  "logoSplashScale": 1.0,
+  "iconBackgroundColor": "#5d5d5d",
+  "iconBackgroundColorDark": "#5d5d5d",
+  "splashBackgroundColor": "#5d5d5d",
+  "splashBackgroundColorDark": "#5d5d5d",
+  "logoSplashScale": 0.6,
   "logo": "./icons/logo.png",
   "android": {
     "adaptiveIcon": {
       "foregroundImage": "./icons/logo.png",
-      "backgroundColor": "#ffd84f"
+      "backgroundImage": "./icons/icon-background.png",
+      "backgroundColor": "#5d5d5d"
     }
   }
 }

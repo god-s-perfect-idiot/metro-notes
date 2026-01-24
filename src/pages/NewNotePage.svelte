@@ -26,18 +26,18 @@
     const match = route.match(/^\/notes\/(.+)$/);
     const newNoteId = match && match[1] !== "new" ? match[1] : null;
     const newIsEditing = !!newNoteId;
-    
+
     // Only update if note ID changed
     if (newNoteId !== noteId) {
       noteId = newNoteId;
       isEditing = newIsEditing;
-      
+
       // Load note data when editing
       if (newIsEditing && newNoteId) {
         // Get current notes state
         let note = null;
-        notesStore.notes.subscribe(noteList => {
-          note = noteList.find(n => n.id === newNoteId);
+        notesStore.notes.subscribe((noteList) => {
+          note = noteList.find((n) => n.id === newNoteId);
         })();
         if (note) {
           noteTitle = note.title;
@@ -65,27 +65,24 @@
 
   function handleSave() {
     // Strip HTML tags for validation (check if there's actual content)
-    const textContent = noteContent.replace(/<[^>]*>/g, '').trim();
+    const textContent = noteContent.replace(/<[^>]*>/g, "").trim();
     if (!noteTitle.trim() && !textContent) {
       addToast("Please enter a title or content for your note", "error");
       return;
     }
 
     isSaving = true;
-    
+
     if (isEditing && noteId) {
       // Update existing note
       notesStore.updateNote(noteId, {
         title: noteTitle.trim() || "Untitled Note",
-        content: noteContent
+        content: noteContent,
       });
       addToast("Note updated", "success");
     } else {
       // Create new note
-      notesStore.createNote(
-        noteTitle.trim() || "Untitled Note",
-        noteContent
-      );
+      notesStore.createNote(noteTitle.trim() || "Untitled Note", noteContent);
       addToast("Note created", "success");
     }
 
@@ -110,42 +107,46 @@
     class:page-exit={isExiting}
     class:page-entering={isEntering}
   >
-  <div class="flex items-center gap-2 h-fit px-4 uppercase mt-2">
-    {#if !backButtonInBottomBar}
-      <button
-        on:click={() => router.goto("/")}
-        class="flex items-center justify-center"
-        aria-label="Back to all notes"
-      >
-        <Icon icon="ion:chevron-back-sharp" width="20" height="20" strokeWidth="2" />
-      </button>
-    {/if}
-    <span class="text-base font-[500]">metro notes</span>
-  </div>
-  <div
-    class="flex flex-col gap-4 pb-20 mt-4 overflow-y-auto overflow-x-hidden px-4 h-full"
-  >
-    <!-- Title Input -->
-    <div class="flex flex-col gap-2">
-      <input
-        type="text"
-        bind:value={noteTitle}
-        placeholder="Note title..."
-        class="text-white bg-transparent w-full pb-3 text-3xl font-[300] outline-none border-b-2 border-gray-400"
-      />
+    <div class="flex items-center gap-2 h-fit px-4 uppercase mt-2">
+      {#if !backButtonInBottomBar}
+        <button
+          on:click={() => router.goto("/")}
+          class="flex items-center justify-center"
+          aria-label="Back to all notes"
+        >
+          <Icon
+            icon="ion:chevron-back-sharp"
+            width="20"
+            height="20"
+            strokeWidth="2"
+          />
+        </button>
+      {/if}
+      <span class="text-base font-[500]">metro notes</span>
     </div>
+    <div
+      class="flex flex-col gap-4 pb-20 mt-4 overflow-y-auto overflow-x-hidden px-4 h-full"
+    >
+      <!-- Title Input -->
+      <div class="flex flex-col gap-2">
+        <input
+          type="text"
+          bind:value={noteTitle}
+          placeholder="Note title..."
+          class="text-white bg-transparent w-full pb-3 text-3xl font-[300] outline-none border-b-2 border-gray-400"
+        />
+      </div>
 
-    <!-- Content Rich Text Editor -->
-    <div class="flex flex-col gap-2 flex-1">
-      <RichTextEditor
-        bind:this={richTextEditorRef}
-        value={noteContent}
-        placeholder="Start writing..."
-        on:input={handleContentInput}
-        className="text-white bg-transparent w-full py-3 text-lg font-[300] flex-1"
-      />
+      <!-- Content Rich Text Editor -->
+      <div class="flex flex-col gap-2 flex-1">
+        <RichTextEditor
+          bind:this={richTextEditorRef}
+          value={noteContent}
+          placeholder="Start writing..."
+          on:input={handleContentInput}
+          className="text-white bg-transparent w-full py-3 text-lg font-[300] flex-1"
+        />
+      </div>
     </div>
-
-  </div>
   </div>
 </div>
