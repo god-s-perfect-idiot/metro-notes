@@ -112,6 +112,19 @@
     }
   }
 
+  function handleContextMenu(e) {
+    e.preventDefault();
+    return false;
+  }
+
+  function handleSelectStart(e) {
+    // Allow selection only when actively editing (focused)
+    if (document.activeElement !== editorElement) {
+      e.preventDefault();
+      return false;
+    }
+  }
+
   function attachCheckboxListeners() {
     if (!editorElement) return;
     const checkboxes = editorElement.querySelectorAll('.rich-text-checkbox');
@@ -139,6 +152,8 @@
   on:input={handleInput}
   on:paste={handlePaste}
   on:click={handleClick}
+  on:contextmenu={handleContextMenu}
+  on:selectstart={handleSelectStart}
   on:compositionstart={handleCompositionStart}
   on:compositionend={handleCompositionEnd}
   data-placeholder={placeholder}

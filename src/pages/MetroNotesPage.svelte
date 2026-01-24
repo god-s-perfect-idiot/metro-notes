@@ -1,8 +1,9 @@
 <script>
   import { router } from "../lib/router.js";
-  import { notes } from "../store/notes.js";
+  import { notes, notesStore } from "../store/notes.js";
   import { textColorClassStore, accentColorStore } from "../utils/theme.js";
   import Icon from "@iconify/svelte";
+  import AppMenu from "../components/AppMenu.svelte";
 
   export let isExiting = false;
   export let isEntering = false;
@@ -16,12 +17,46 @@
   let touchStartX = null;
   let isScrolling = false;
   let touchStartTime = null;
+  let longPressTimer = null;
+  let showMenu = false;
+  let selectedNote = null;
+  let menuPosition = { y: 0 };
+  let deletingNoteId = null;
+  let menuClosing = false;
 
   function handleTouchStart(e, note) {
     touchStartY = e.touches[0].clientY;
     touchStartX = e.touches[0].clientX;
     touchStartTime = Date.now();
     isScrolling = false;
+
+    // Clear any existing long press timer
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
+    // Set up long press timer (500ms)
+    longPressTimer = setTimeout(() => {
+      // Get the vertical position of the touch
+      const touchY = e.touches[0].clientY;
+      const menuHeight = 60; // Approximate menu height
+      const padding = 10;
+
+      let y = touchY;
+
+      // Adjust if too close to edges
+      if (y < padding) {
+        y = padding;
+      } else if (y > window.innerHeight - menuHeight - padding) {
+        y = window.innerHeight - menuHeight - padding;
+      }
+
+      menuPosition = { y };
+      selectedNote = note;
+      showMenu = true;
+      longPressTimer = null;
+    }, 500);
   }
 
   function handleTouchMove(e) {
@@ -33,15 +68,36 @@
     // If movement is significant, user is scrolling
     if (deltaY > 10 || deltaX > 10) {
       isScrolling = true;
+      // Cancel long press if scrolling
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
     }
   }
 
   function handleTouchEnd(e, note) {
+    // Clear long press timer
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+
     if (touchStartY === null || touchStartX === null) return;
 
     const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
     const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
     const touchDuration = Date.now() - touchStartTime;
+
+    // If menu is showing, don't trigger tap
+    if (showMenu) {
+      // Reset touch tracking
+      touchStartY = null;
+      touchStartX = null;
+      touchStartTime = null;
+      isScrolling = false;
+      return;
+    }
 
     // Only trigger tap if:
     // 1. Not scrolling (movement < 10px)
@@ -57,7 +113,46 @@
     isScrolling = false;
   }
 
+  function handleDeleteNote() {
+    if (selectedNote) {
+      const noteIdToDelete = selectedNote.id;
+      // Trigger menu closing animation first
+      menuClosing = true;
+
+      // Wait for menu to collapse completely (200ms), then start note deletion animation
+      setTimeout(() => {
+        // Mark note as deleting to trigger animation
+        deletingNoteId = noteIdToDelete;
+
+        // Delete note after deletion animation completes (300ms)
+        setTimeout(() => {
+          notesStore.deleteNote(noteIdToDelete);
+          deletingNoteId = null;
+          showMenu = false;
+          selectedNote = null;
+          menuClosing = false;
+        }, 300); // Match deletion animation duration
+      }, 200); // Wait for menu collapse to complete
+    }
+  }
+
+  function handleMenuClose() {
+    menuClosing = false;
+    showMenu = false;
+    selectedNote = null;
+    // Reset touch tracking to prevent note from opening
+    touchStartY = null;
+    touchStartX = null;
+    touchStartTime = null;
+    isScrolling = false;
+  }
+
   function handleNoteTap(note) {
+    // Don't open note if menu is showing
+    if (showMenu) {
+      return;
+    }
+
     const noteId = note.id;
     tappedNoteId = noteId;
 
@@ -141,6 +236,11 @@
     class="flex flex-col w-full font-[400] h-screen page overflow-x-hidden"
     class:page-exit={isExiting}
     class:page-entering={isEntering}
+    on:contextmenu={(e) => {
+      if (showMenu) {
+        e.preventDefault();
+      }
+    }}
   >
     <span class="text-base font-[500] h-fit px-4 uppercase mt-2"
       >metro notes</span
@@ -160,15 +260,44 @@
                 <div
                   class="flex flex-col gap-2 w-full min-w-0 note-item text-left"
                   class:tapped={tappedNoteId === note.id}
+                  class:menu-open={showMenu}
+                  class:deleting={deletingNoteId === note.id}
                 >
                   <button
                     class="flex flex-col min-w-0 items-start overflow-hidden"
-                    on:click={() => {
+                    disabled={showMenu}
+                    on:click={(e) => {
+                      if (showMenu) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
                       handleNoteTap(note);
                     }}
-                    on:touchstart={(e) => handleTouchStart(e, note)}
+                    on:touchstart={(e) => {
+                      if (showMenu) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
+                      handleTouchStart(e, note);
+                    }}
                     on:touchmove={handleTouchMove}
-                    on:touchend={(e) => handleTouchEnd(e, note)}
+                    on:touchend={(e) => {
+                      if (showMenu) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Reset touch tracking when menu is open
+                        touchStartY = null;
+                        touchStartX = null;
+                        touchStartTime = null;
+                        isScrolling = false;
+                        return;
+                      }
+                      handleTouchEnd(e, note);
+                    }}
+                    on:contextmenu={(e) => e.preventDefault()}
+                    on:selectstart={(e) => e.preventDefault()}
                   >
                     <span
                       class="text-2xl text-left font-[300] truncate w-full"
@@ -191,34 +320,67 @@
           </div>
         {/each}
       {:else}
-        <div class="text-center py-12">
-          <Icon
-            icon="mdi:note-outline"
-            width="64"
-            height="64"
-            class="text-gray-500 mb-4"
-          />
-          <h3 class="text-xl font-semibold mb-2 justify-start flex font-[300]">
-            No Notes Found
-          </h3>
-          <p
-            class="text-gray-400 font-[300] justify-start flex text-left text-lg"
-          >
-            Create your first note to get started.
-          </p>
+        <div class="text-start py-4">
+          <span class="text-xl justify-start flex font-[300]">
+            Wow. Such empty. You can add a note by tapping the plus button
+            below.
+          </span>
         </div>
       {/if}
     </div>
   </div>
+
+  <!-- App Menu for long press -->
+  {#if showMenu}
+    <div
+      on:contextmenu={(e) => e.preventDefault()}
+      style="position: fixed; inset: 0; z-index: 99;"
+    >
+      <AppMenu
+        onDelete={handleDeleteNote}
+        on:close={handleMenuClose}
+        position={menuPosition}
+        closing={menuClosing}
+      />
+    </div>
+  {/if}
 </div>
 
 <style>
   .note-item {
     transition: transform 0.1s ease-out;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    overflow: hidden;
   }
 
   .note-item.tapped {
     transform: translate(2px, 2px);
+  }
+
+  .note-item.menu-open button {
+    pointer-events: none;
+  }
+
+  .note-item.deleting {
+    animation: shrinkDelete 0.3s ease-out forwards;
+    opacity: 1;
+  }
+
+  @keyframes shrinkDelete {
+    from {
+      max-height: 200px;
+      margin-bottom: 1rem;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+    to {
+      max-height: 0;
+      margin-bottom: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
   }
 
   .line-clamp-2 {

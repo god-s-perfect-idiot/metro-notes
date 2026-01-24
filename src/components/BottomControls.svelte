@@ -86,7 +86,7 @@
 </script>
 
 <div
-  class="fixed bottom-0 left-0 right-0 z-50 bottom-bar-wrapper"
+  class="fixed bottom-0 left-0 right-0 z-[102] bottom-bar-wrapper"
   class:entering={internalIsEntering || (isEntering && isMounted)}
   class:exiting={unmounting}
   style="background-color: {bottomBarBg};"
