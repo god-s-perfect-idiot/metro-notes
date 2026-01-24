@@ -35,10 +35,82 @@
     handleInput();
   }
 
-  function handlePaste(e) {
+  async function handlePaste(e) {
     e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    const clipboardData = e.clipboardData || window.clipboardData;
+    
+    // Check if clipboard contains images
+    if (clipboardData.items && clipboardData.items.length > 0) {
+      const items = Array.from(clipboardData.items);
+      const imageItem = items.find(item => item.type.indexOf('image') !== -1);
+      
+      if (imageItem) {
+        // Handle image paste
+        const file = imageItem.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const imageDataUrl = event.target.result;
+            insertImageAtCursor(imageDataUrl);
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+    }
+    
+    // Fallback to text paste
+    const text = clipboardData.getData('text/plain');
     document.execCommand('insertText', false, text);
+    handleInput();
+  }
+
+  function insertImageAtCursor(imageDataUrl) {
+    if (!editorElement) return;
+    
+    const selection = window.getSelection();
+    let range;
+    
+    if (selection.rangeCount > 0) {
+      range = selection.getRangeAt(0);
+      // Check if selection is within the editor
+      if (!editorElement.contains(range.commonAncestorContainer)) {
+        // If not in editor, create range at end
+        range = document.createRange();
+        range.selectNodeContents(editorElement);
+        range.collapse(false);
+      }
+    } else {
+      // No selection, insert at end
+      range = document.createRange();
+      range.selectNodeContents(editorElement);
+      range.collapse(false);
+    }
+    
+    // Create image element
+    const img = document.createElement('img');
+    img.src = imageDataUrl;
+    img.className = 'rich-text-image';
+    img.style.maxWidth = '100%';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '0.5rem 0';
+    
+    // Insert image
+    range.deleteContents();
+    range.insertNode(img);
+    
+    // Insert a line break after the image
+    const br = document.createElement('br');
+    range.setStartAfter(img);
+    range.insertNode(br);
+    
+    // Move cursor after the image
+    range.setStartAfter(br);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
     handleInput();
   }
 
@@ -202,6 +274,19 @@
 
   .rich-text-checkbox-label:focus {
     outline: none;
+  }
+
+  .rich-text-image {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.5rem 0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .rich-text-image:hover {
+    opacity: 0.9;
   }
 </style>
 
