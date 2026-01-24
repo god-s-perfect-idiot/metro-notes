@@ -1,12 +1,13 @@
 {
   "name": "metro-spotify",
   "version": "1.0.0",
-  "description": "Metro Spotify - Android App",
+  "description": "Metro Notes - Android App",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "assets:generate": "capacitor-assets generate --iconBackgroundColor '#ffd84f' --iconBackgroundColorDark '#ffd84f' --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'",
     "android:sync": "cap sync android",
     "android:open": "cap open android",
     "android:run": "npm run build && cap sync android && cap open android",

@@ -1,0 +1,17 @@
+const config = {
+  iconBackgroundColor: '#ffd84f',
+  iconBackgroundColorDark: '#ffd84f',
+  splashBackgroundColor: '#000000',
+  splashBackgroundColorDark: '#000000',
+  logoSplashScale: 1.0,
+  logo: './icons/logo.png',
+  android: {
+    adaptiveIcon: {
+      foregroundImage: './icons/logo.png',
+      backgroundColor: '#ffd84f',
+    },
+  },
+};
+
+export default config;
+

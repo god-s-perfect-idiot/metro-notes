@@ -1,6 +1,6 @@
 # Android Setup Guide
 
-This guide will help you set up the Android development environment and build the Metro Spotify app.
+This guide will help you set up the Android development environment and build the Metro Notes app.
 
 ## Initial Setup
 

@@ -45,29 +45,29 @@
   export function insertCheckbox(checked = false) {
     if (!editorElement) return;
     
-    // Focus the editor first to ensure we're working with the correct selection
-    editorElement.focus();
-    
     const selection = window.getSelection();
     let range;
     
+    // Check if editor was already focused before we focus it
+    const wasEditorFocused = document.activeElement === editorElement;
+    
     // Check if selection is within the editor
-    if (selection.rangeCount > 0) {
+    let hasValidSelection = false;
+    if (wasEditorFocused && selection.rangeCount > 0) {
       const currentRange = selection.getRangeAt(0);
       const isInEditor = editorElement.contains(currentRange.commonAncestorContainer);
       
       if (isInEditor) {
         range = currentRange;
-      } else {
-        // Selection is outside editor, create range at end of editor
-        range = document.createRange();
-        range.selectNodeContents(editorElement);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        hasValidSelection = true;
       }
-    } else {
-      // No selection, create range at end of editor
+    }
+    
+    // Focus the editor
+    editorElement.focus();
+    
+    // If we didn't have a valid selection (editor wasn't focused), create range at end of editor
+    if (!hasValidSelection) {
       range = document.createRange();
       range.selectNodeContents(editorElement);
       range.collapse(false);

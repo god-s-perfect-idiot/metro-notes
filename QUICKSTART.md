@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get the Metro Spotify Android app up and running in minutes.
+Get the Metro Notes Android app up and running in minutes.
 
 ## Prerequisites Check
 
