@@ -36,6 +36,22 @@
 
   // Get recent notes (last 10)
   $: recentNotes = notesList.slice(0, 10);
+
+  function stripHtml(html) {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    // Get text content, preserving line breaks
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  function getPreviewContent(html) {
+    if (!html) return '';
+    const text = stripHtml(html);
+    // Limit to first 100 characters for preview
+    return text.length > 100 ? text.substring(0, 100) + '...' : text;
+  }
 </script>
 
 <div class="page-holder h-full">
@@ -69,9 +85,9 @@
             {#if note.content}
               <span
                 class="text-gray-400 text-left text-base font-[300] line-clamp-2 w-full"
-                title={note.content}
+                title={stripHtml(note.content)}
               >
-                {note.content}
+                {getPreviewContent(note.content)}
               </span>
             {/if}
             <span

@@ -116,13 +116,23 @@
 
   function getButtonsForRoute(path, isEdit) {
     if (path === "/notes/new" || isEdit) {
-      // Back and Save buttons for note editing
+      // Back, Checklist, and Save buttons for note editing
       return [
         {
           icon: "subway:left-arrow",
           text: "back",
           action: () => router.goto("/"),
           ariaLabel: "Back to all notes"
+        },
+        {
+          icon: "mdi:checkbox-marked-outline",
+          text: "checklist",
+          action: () => {
+            if (newNotePageRef && newNotePageRef.insertCheckbox) {
+              newNotePageRef.insertCheckbox(false);
+            }
+          },
+          ariaLabel: "Insert checklist item"
         },
         {
           icon: "tdesign:save-filled",

@@ -5,6 +5,7 @@
   import { textColorClassStore, accentColorStore } from "../utils/theme.js";
   import { addToast } from "../store/toast.js";
   import Icon from "@iconify/svelte";
+  import RichTextEditor from "../components/RichTextEditor.svelte";
 
   export let isExiting = false;
   export let isEntering = false;
@@ -14,6 +15,7 @@
   let isSaving = false;
   let noteId = null;
   let isEditing = false;
+  let richTextEditorRef = null;
 
   $: route = $currentRoute;
   $: {
@@ -51,8 +53,17 @@
     handleSave();
   }
 
+  // Expose insertCheckbox function to parent
+  export function insertCheckbox(checked = false) {
+    if (richTextEditorRef && richTextEditorRef.insertCheckbox) {
+      richTextEditorRef.insertCheckbox(checked);
+    }
+  }
+
   function handleSave() {
-    if (!noteTitle.trim() && !noteContent.trim()) {
+    // Strip HTML tags for validation (check if there's actual content)
+    const textContent = noteContent.replace(/<[^>]*>/g, '').trim();
+    if (!noteTitle.trim() && !textContent) {
       addToast("Please enter a title or content for your note", "error");
       return;
     }
@@ -63,14 +74,14 @@
       // Update existing note
       notesStore.updateNote(noteId, {
         title: noteTitle.trim() || "Untitled Note",
-        content: noteContent.trim()
+        content: noteContent
       });
       addToast("Note updated", "success");
     } else {
       // Create new note
       notesStore.createNote(
         noteTitle.trim() || "Untitled Note",
-        noteContent.trim()
+        noteContent
       );
       addToast("Note created", "success");
     }
@@ -79,6 +90,10 @@
     setTimeout(() => {
       router.goto("/");
     }, 100);
+  }
+
+  function handleContentInput(e) {
+    noteContent = e.detail;
   }
 
   function handleCancel() {
@@ -106,14 +121,15 @@
       />
     </div>
 
-    <!-- Content Textarea -->
+    <!-- Content Rich Text Editor -->
     <div class="flex flex-col gap-2 flex-1">
-      <textarea
-        bind:value={noteContent}
+      <RichTextEditor
+        bind:this={richTextEditorRef}
+        value={noteContent}
         placeholder="Start writing..."
-        class="text-white bg-transparent w-full py-3 text-lg font-[300] outline-none resize-none flex-1"
-        rows="20"
-      ></textarea>
+        on:input={handleContentInput}
+        className="text-white bg-transparent w-full py-3 text-lg font-[300] flex-1"
+      />
     </div>
 
   </div>
